@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/jack-sneddon/FolderSitter/golang/util"
@@ -51,13 +50,19 @@ func main() {
 	// Prepare the journal file path
 	journalFilePath := filepath.Join(config.TargetDirectory, "folder-sitter-journal.txt")
 
+	// Write the start of the run to the journal
+	startMessage := fmt.Sprintf("\n\n===== Backup Run Started: %s =====\n", time.Now().Format("2006-01-02 15:04:05"))
+	if err := util.AppendToJournal(journalFilePath, startMessage); err != nil {
+		log.Fatalf("Failed to write to journal: %v", err)
+	}
+
 	// Start concurrent folder copies with a spinner
 	fmt.Println("\nStarting the backup process...")
 	done := make(chan bool) // Channel to signal the spinner
 	go spinner(done)        // Start the spinner in a separate goroutine
 
 	// Execute the worker pool for folder copies
-	workerPool(2, config.FoldersToBackup, func(folder string) {
+	util.WorkerPool(2, config.FoldersToBackup, func(folder string) {
 		sourcePath := filepath.Join(config.SourceDirectory, folder)
 		targetPath := filepath.Join(config.TargetDirectory, folder)
 		fmt.Printf("\nBacking up %s to %s...\n", sourcePath, targetPath)
@@ -71,32 +76,15 @@ func main() {
 	// Stop the spinner
 	done <- true
 
+	// Calculate and log total time
+	totalTime := formatDuration(time.Since(programStart))
+	endMessage := fmt.Sprintf("===== Backup Run Completed: %s =====\nTotal Time: %s\n", time.Now().Format("2006-01-02 15:04:05"), totalTime)
+	if err := util.AppendToJournal(journalFilePath, endMessage); err != nil {
+		log.Fatalf("Failed to write to journal: %v", err)
+	}
+
 	// Print the total program time
-	fmt.Printf("\nBackup process completed in %s.\n", formatDuration(time.Since(programStart)))
-}
-
-// workerPool executes folder copy operations concurrently using a fixed number of workers.
-func workerPool(numWorkers int, folders []string, workerFunc func(string)) {
-	tasks := make(chan string, len(folders))
-
-	// Add tasks to the channel
-	for _, folder := range folders {
-		tasks <- folder
-	}
-	close(tasks)
-
-	var wg sync.WaitGroup
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for folder := range tasks {
-				workerFunc(folder)
-			}
-		}()
-	}
-
-	wg.Wait() // Wait for all workers to finish
+	fmt.Printf("\nBackup process completed in %s.\n", totalTime)
 }
 
 // spinner displays a rotating spinner in the console to indicate progress.
@@ -125,4 +113,3 @@ func formatDuration(d time.Duration) string {
 	seconds := d / time.Second
 	return fmt.Sprintf("%02dh:%02dm:%02ds", hours, minutes, seconds)
 }
-
