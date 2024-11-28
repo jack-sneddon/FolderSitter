@@ -1,0 +1,1 @@
+e.g. - $python3 dirCompare.py compare-Books.txt

@@ -1,11 +1,11 @@
 {
-    "source_directory": "/Users/jack/Downloads/export",
-    "target_directory": "/Users/jack/tmp/2024-11-27",
+    "source_directory": "/Volumes/Media Drive",
+    "target_directory": "/Volumes/Backup Vol 1/2024-11-27",
     "folders_to_backup": [
-      "Packers",
-      "photos",
-      "Photos-001/movies",
-      "Photos-001/images"
+      "Photos",
+      "Pictures",
+      "Books",
+      "Home Movies"
     ],
     "deep_duplicate_check": true
 }
