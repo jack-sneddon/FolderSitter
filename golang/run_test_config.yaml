@@ -1,0 +1,7 @@
+source_directory: "/Users/jack/tmp/2024-11-27"
+target_directory: "/Users/jack/tmp/2024-11-27-backyaml"
+folders_to_backup:
+  - "Packers"
+  - "Photos-001"
+  - "photos"
+deep_duplicate_check: true

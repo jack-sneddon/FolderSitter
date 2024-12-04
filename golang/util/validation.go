@@ -6,7 +6,7 @@ import (
 )
 
 // Validate checks the backup configuration, ensuring source and target directories exist and folders are valid.
-func Validate(config BackupConfig) error {
+func Validate(config * BackupConfig) error {
 	// Validate source directory
 	if _, err := os.Stat(config.SourceDirectory); os.IsNotExist(err) {
 		return fmt.Errorf("source directory %s does not exist", config.SourceDirectory)

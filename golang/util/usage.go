@@ -3,7 +3,7 @@ package util
 import "fmt"
 
 // PrintUsage prints out the source-to-target mapping for each folder to be backed up.
-func PrintUsage(config BackupConfig) {
+func PrintUsage(config * BackupConfig) {
 	fmt.Println("\nBackup Plan:")
 	for _, folder := range config.FoldersToBackup {
 		sourcePath := fmt.Sprintf("%s/%s", config.SourceDirectory, folder)

@@ -1,3 +1,5 @@
+package main
+
 /*
 My main usecase is backup from an SSD to HDD.
 Because I'm using HDD, concurrency is kept to a minimum.
@@ -17,11 +19,11 @@ Because I'm using HDD, concurrency is kept to a minimum.
 	- Ensure the DeepCopy function recursively traverses and processes subdirectories.
 */
 
-package main
-
 import (
+	"flag"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -29,13 +31,22 @@ import (
 )
 
 func main() {
+	// Parse command-line arguments
+	configFile := flag.String("config", "", "Path to the configuration file (JSON or YAML)")
+	flag.Parse()
+
+	if *configFile == "" {
+		fmt.Println("Usage: foldersitter -config <path_to_config_file>")
+		os.Exit(1)
+	}
+
 	// Start the program timer
 	programStart := time.Now()
 
-	// Read the configuration from the JSON file
-	config, err := util.ReadConfig("backup_config.json")
+	// Read the configuration from the provided file
+	config, err := util.ReadConfig(*configFile)
 	if err != nil {
-		log.Fatalf("Error reading configuration: %v", err)
+		log.Fatalf("Error reading configuration from %s: %v", *configFile, err)
 	}
 
 	// Validate the configuration directories and folders
