@@ -1,0 +1,32 @@
+# Compiled object files
+*.o
+*.a
+
+# Executables
+*.exe
+
+# OS specific files
+.DS_Store
+
+# IDE files
+*.DS_Store
+*.idea
+*.vscode
+
+# Build files
+*.out
+*.bin
+
+# Test files
+*.test
+*_test.go
+
+# Coverage files
+cover*
+
+# Dependency directories
+vendor/
+**/vendor/
+
+# Generated files
+**/.terraform*

@@ -1,2 +1,2 @@
-original="/Users/jack/tmp/2024-11-27-backJson"
+original="/Users/jack/tmp/2024-11-27"
 destination="/Users/jack/tmp/2024-11-27-backyaml"
