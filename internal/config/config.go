@@ -71,3 +71,16 @@ func readYAML(filePath string, config *BackupConfig) error {
 
 	return nil
 }
+
+func Validate(cfg *BackupConfig) error {
+	if cfg.SourceDirectory == "" {
+		return fmt.Errorf("source_directory is empty")
+	}
+	if cfg.TargetDirectory == "" {
+		return fmt.Errorf("target_directory is empty")
+	}
+	if len(cfg.FoldersToBackup) == 0 {
+		return fmt.Errorf("folders_to_backup is empty")
+	}
+	return nil
+}

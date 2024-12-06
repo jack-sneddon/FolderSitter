@@ -15,9 +15,9 @@ import (
 )
 
 type ComparisonResult struct {
-	Added    []string
-	Removed  []string
-	Changed  []string
+	Added   []string
+	Removed []string
+	Changed []string
 }
 
 func main() {
