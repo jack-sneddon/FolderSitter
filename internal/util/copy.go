@@ -16,7 +16,7 @@ func DeepCopy(sourcePath, destPath string, deepDuplicateCheck bool, journalFileP
 
 	// If source is a directory, copy recursively
 	if sourceInfo.IsDir() {
-		return copyDirectory(sourcePath, destPath, deepDuplicateCheck, journalFilePath)
+		return CopyDirectory(sourcePath, destPath, deepDuplicateCheck, journalFilePath)
 	}
 
 	// Otherwise, copy a single file
@@ -24,7 +24,7 @@ func DeepCopy(sourcePath, destPath string, deepDuplicateCheck bool, journalFileP
 }
 
 // copyDirectory copies all files and subdirectories from source to destination.
-func copyDirectory(sourceDir, destDir string, deepDuplicateCheck bool, journalFilePath string) error {
+func CopyDirectory(sourceDir, destDir string, deepDuplicateCheck bool, journalFilePath string) error {
 	entries, err := os.ReadDir(sourceDir)
 	if err != nil {
 		return fmt.Errorf("failed to read source directory %s: %w", sourceDir, err)
@@ -40,7 +40,7 @@ func copyDirectory(sourceDir, destDir string, deepDuplicateCheck bool, journalFi
 		destPath := filepath.Join(destDir, entry.Name())
 
 		if entry.IsDir() {
-			if err := copyDirectory(sourcePath, destPath, deepDuplicateCheck, journalFilePath); err != nil {
+			if err := CopyDirectory(sourcePath, destPath, deepDuplicateCheck, journalFilePath); err != nil {
 				return err
 			}
 		} else {
@@ -63,7 +63,11 @@ func copyFile(sourceFile, destFile string, deepDuplicateCheck bool, journalFileP
 		}
 		if isDuplicate {
 			message := fmt.Sprintf("Skipped identical file: %s", sourceFile)
-			LogInfo(journalFilePath, message)
+			err := AppendToJournal(journalFilePath, message) // Write to journal file
+			AppendToJournal(journalFilePath, message)
+			if err != nil {
+				return fmt.Errorf("failed to log skipped file: %w", err)
+			}
 			return nil
 		}
 	}
@@ -98,7 +102,11 @@ func copyFile(sourceFile, destFile string, deepDuplicateCheck bool, journalFileP
 
 	// Log the copy operation
 	message := fmt.Sprintf("Copied file: %s -> %s", sourceFile, destFile)
-	return LogInfo(journalFilePath, message)
+	err = AppendToJournal(journalFilePath, message) // Write to journal file
+	if err != nil {
+		return fmt.Errorf("failed to log copied file: %w", err)
+	}
+	return nil
 }
 
 // shouldSkipFile checks if the destination file is identical to the source file.
