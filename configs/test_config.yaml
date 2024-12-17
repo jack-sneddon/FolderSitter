@@ -1,7 +1,26 @@
+# Basic directory settings
 source_directory: "/Users/jack/tmp/2024-11-27"
 target_directory: "/Users/jack/tmp/2024-11-27-backyaml"
 folders_to_backup:
   - "Packers"
   - "Photos-001"
   - "photos"
+
+# File comparison settings
 deep_duplicate_check: true
+checksum_algorithm: "sha256"  # For file integrity verification
+
+# Performance settings
+concurrency: 2        # Number of concurrent file copy operations
+buffer_size: 32768    # Buffer size for copying (32KB)
+retry_attempts: 3     # Number of retries for failed operations
+retry_delay: "1s"     # Delay between retry attempts
+
+# Logging settings
+log_level: "info"     # Available: debug, info, warn, error
+
+# Optional patterns to exclude
+exclude_patterns:     # Files/patterns to skip during backup
+  - "*.tmp"
+  - ".DS_Store"
+  - "Thumbs.db"

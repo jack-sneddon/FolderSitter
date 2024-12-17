@@ -72,5 +72,17 @@ A versatile and customizable backup utility designed to ensure safe, efficient, 
 - Notifications for success, failure, or errors during backup.
 - Cloud-based configuration storage for syncing across systems.
 
+## Suggestions for Future Features
+	•	Support for Remote Destinations: Implement functionality to back up data to remote destinations such as AWS S3 or Google Drive, providing users with more flexibility in storage options.
+	•	Encryption for Sensitive Data: Add encryption features to secure sensitive data during backups, ensuring data privacy and protection.
+	•	Multi-threaded or Parallel Processing: Introduce multi-threaded or parallel processing capabilities to improve performance, especially when dealing with large datasets.
+	•	Real-time Progress Reporting: Provide real-time progress reporting to keep users informed about the backup process status.
+	•	Cross-platform GUI: Develop a cross-platform graphical user interface (GUI) to make the tool more accessible to users who prefer not to use command-line interfaces.
+	•	Backup Retention Policies: Implement backup retention policies to manage storage by automatically deleting old backups based on user-defined criteria.
+	•	Pre/Post-backup Hooks: Allow users to define custom actions or scripts to be executed before and after the backup process, providing greater flexibility in backup operations.
+	•	Notifications: Set up notifications to inform users of the success, failure, or errors during the backup process, enhancing user awareness and prompt action.
+	•	Cloud-based Configuration Storage: Enable cloud-based storage for configuration files to allow syncing across multiple systems, ensuring consistency in backup settings.
+
+
 ## License
 MIT License

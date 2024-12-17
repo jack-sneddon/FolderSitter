@@ -1,29 +1,28 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 
-	"github.com/jack-sneddon/FolderSitter/internal/config"
-	"github.com/jack-sneddon/FolderSitter/internal/util"
+	"github.com/jack-sneddon/FolderSitter/internal/backup"
 )
 
 func printHelp() {
-	fmt.Println(`FolderSitter - Backup Utility
+	fmt.Print(`FolderSitter - Backup Utility
 
 Usage:
   foldersitter [options]
 
 Options:
   -config <file>       Path to the configuration file (JSON or YAML).
-  --help, -h           Show this help message and exit.
-  --verbose, -v        Enable verbose logging.
-  --quiet, -q          Suppress all output except errors.
-  --validate           Validate the configuration file without performing a backup.
-  --dry-run            Simulate the backup process without making any changes.
-  --log-level <level>  Set logging level: info, warn, error.
+  --help, -h          Show this help message and exit.
+  --verbose, -v       Enable verbose logging.
+  --quiet, -q         Suppress all output except errors.
+  --validate          Validate the configuration file without performing a backup.
+  --dry-run           Simulate the backup process without making any changes.
+  --log-level <level> Set logging level: info, warn, error.
 
 Examples:
   foldersitter -config backup_config.json
@@ -55,69 +54,60 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize logger
-	if err := util.InitLogger(); err != nil {
-		fmt.Println("Failed to initialize logger:", err)
-		os.Exit(1)
-	}
-	defer util.CloseLogger()
-
-	// Set log level
-	if err := util.SetLogLevel(*logLevel); err != nil {
-		fmt.Println("Invalid log level:", *logLevel)
-		os.Exit(1)
-	}
-
-	// Load configuration
-	cfg, err := config.Load(*configPath)
+	// Create backup configuration
+	cfg, err := backup.LoadConfig(*configPath)
 	if err != nil {
-		util.LogError("Failed to load configuration: %v", err)
+		fmt.Printf("Failed to load configuration: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Validate configuration if --validate is provided
+	// Set configuration options from flags
+	cfg.Options = &backup.Options{
+		Verbose:  *verboseFlag,
+		Quiet:    *quietFlag,
+		LogLevel: *logLevel,
+	}
+
+	// Create backup service
+	service, err := backup.NewService(cfg)
+	if err != nil {
+		fmt.Printf("Failed to create backup service: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Validate configuration if requested
 	if *validateFlag {
-		if err := config.Validate(cfg); err != nil {
-			util.LogError("Configuration validation failed: %v", err)
+		if err := backup.Validate(cfg); err != nil {
+			fmt.Printf("Configuration validation failed: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println("Configuration is valid.")
 		return
 	}
 
-	// Perform backup
+	// Create context for the operation
+	ctx := context.Background()
+
+	// Perform the operation
 	if *dryRunFlag {
-		util.LogInfo("Performing dry run...")
+		if !*quietFlag {
+			fmt.Println("Starting dry run...")
+		}
+		if err := service.DryRun(ctx); err != nil {
+			fmt.Printf("Dry run failed: %v\n", err)
+			os.Exit(1)
+		}
 	} else {
-		util.LogInfo("Starting backup...")
-	}
-
-	// Define the journal file path
-	journalFilePath := filepath.Join(cfg.TargetDirectory, "folder-sitter-journal.txt")
-
-	for _, folder := range cfg.FoldersToBackup {
-		srcPath := filepath.Join(cfg.SourceDirectory, folder)
-		destPath := filepath.Join(cfg.TargetDirectory, folder)
-
-		if *dryRunFlag {
-			util.LogInfo("Dry run: would copy %s to %s", srcPath, destPath)
-		} else {
-			if err := util.CopyDirectory(srcPath, destPath, cfg.DeepDuplicateCheck, journalFilePath); err != nil {
-				util.LogError("Failed to copy %s to %s: %v", srcPath, destPath, err)
-				if !*quietFlag {
-					fmt.Printf("Error: failed to copy %s to %s\n", srcPath, destPath)
-				}
-			} else {
-				util.LogInfo("Successfully copied %s to %s", srcPath, destPath)
-				if !*quietFlag && !*verboseFlag {
-					fmt.Printf("Copied %s to %s\n", srcPath, destPath)
-				}
-			}
+		if !*quietFlag {
+			fmt.Println("Starting backup...")
+		}
+		if err := service.Backup(ctx); err != nil {
+			fmt.Printf("Backup failed: %v\n", err)
+			os.Exit(1)
 		}
 	}
 
-	util.LogInfo("Backup process completed.")
 	if !*quietFlag {
-		fmt.Println("Backup process completed.")
+		fmt.Println("Operation completed successfully.")
 	}
 }
