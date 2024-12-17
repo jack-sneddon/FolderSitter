@@ -1,3 +1,16 @@
+# Ignore build artifacts
+foldersitter
+*.log
+
+# Ignore out directory
+out/
+
+# Ignore Go module files (if needed)
+go.sum
+
+# Ignore debug files
+__debug_bin*
+
 # Compiled object files
 *.o
 *.a
@@ -30,3 +43,4 @@ vendor/
 
 # Generated files
 **/.terraform*
+
