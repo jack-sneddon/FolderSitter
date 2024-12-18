@@ -1,3 +1,4 @@
+// operations.go
 package backup
 
 import (
@@ -7,7 +8,6 @@ import (
 	"time"
 )
 
-// Backup performs the backup operation
 func (s *Service) Backup(ctx context.Context) error {
 	startTime := time.Now()
 
@@ -51,7 +51,7 @@ func (s *Service) Backup(ctx context.Context) error {
 	errors := s.metrics.Errors
 	s.metrics.mu.Unlock()
 
-	// Log completion with proper formatting
+	// Log completion
 	s.logger.Info("Backup completed in %v. Files copied: %d, Files skipped: %d, Errors: %d, Total size: %.2f MB",
 		duration,
 		filesCopied,

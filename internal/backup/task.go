@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 )
 
-// Contains createTasks() and related task management methods
 // createTasks generates the list of files to be backed up
 func (s *Service) createTasks() ([]CopyTask, error) {
 	var tasks []CopyTask

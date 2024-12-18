@@ -1,11 +1,10 @@
+// validation.go
 package backup
 
 import (
 	"fmt"
 	"os"
 )
-
-// Contains validatePaths(), shouldSkipFile(), and related methods
 
 // validatePaths ensures all necessary directories exist
 func (s *Service) validatePaths() error {
@@ -65,11 +64,42 @@ func (s *Service) shouldSkipFile(task CopyTask) (bool, error) {
 
 	// Files are identical - update metrics
 	s.metrics.mu.Lock()
-	s.metrics.BytesCopied += sourceInfo.Size() // Include size in total
+	s.metrics.BytesCopied += sourceInfo.Size()
 	s.metrics.FilesSkipped++
 	s.metrics.mu.Unlock()
 
 	s.logger.Debug("Skipped identical file: %s (Size: %.2f MB)",
 		task.Source, float64(sourceInfo.Size())/1024/1024)
 	return true, nil
+}
+
+// Add this public function
+func Validate(cfg *Config) error {
+	if cfg.SourceDirectory == "" {
+		return newBackupError("Validate", "", fmt.Errorf("source_directory is empty"))
+	}
+	if cfg.TargetDirectory == "" {
+		return newBackupError("Validate", "", fmt.Errorf("target_directory is empty"))
+	}
+	if len(cfg.FoldersToBackup) == 0 {
+		return newBackupError("Validate", "", fmt.Errorf("folders_to_backup is empty"))
+	}
+
+	// Check source directory exists
+	if _, err := os.Stat(cfg.SourceDirectory); err != nil {
+		return newBackupError("Validate", cfg.SourceDirectory, fmt.Errorf("source directory does not exist"))
+	}
+
+	// Validate configuration values
+	if cfg.Concurrency < 1 {
+		return newBackupError("Validate", "", fmt.Errorf("concurrency must be at least 1"))
+	}
+	if cfg.BufferSize < 1024 {
+		return newBackupError("Validate", "", fmt.Errorf("buffer size must be at least 1024 bytes"))
+	}
+	if cfg.RetryAttempts < 0 {
+		return newBackupError("Validate", "", fmt.Errorf("retry attempts cannot be negative"))
+	}
+
+	return nil
 }

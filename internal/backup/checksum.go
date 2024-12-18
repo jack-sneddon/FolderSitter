@@ -1,3 +1,4 @@
+// checksum.go
 package backup
 
 import (
@@ -6,8 +7,6 @@ import (
 	"io"
 	"os"
 )
-
-// Contains calculateChecksum() and related methods
 
 // calculateChecksum computes SHA-256 hash of file
 func (s *Service) calculateChecksum(filePath string) (string, error) {

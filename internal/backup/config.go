@@ -17,21 +17,17 @@ type Options struct {
 }
 
 type Config struct {
-	SourceDirectory    string   `json:"source_directory" yaml:"source_directory"`
-	FoldersToBackup    []string `json:"folders_to_backup" yaml:"folders_to_backup"`
-	TargetDirectory    string   `json:"target_directory" yaml:"target_directory"`
-	DeepDuplicateCheck bool     `json:"deep_duplicate_check" yaml:"deep_duplicate_check"`
-
-	// New configuration options
-	Concurrency       int           `json:"concurrency" yaml:"concurrency"`
-	BufferSize        int           `json:"buffer_size" yaml:"buffer_size"`
-	RetryAttempts     int           `json:"retry_attempts" yaml:"retry_attempts"`
-	RetryDelay        time.Duration `json:"retry_delay" yaml:"retry_delay"`
-	ExcludePatterns   []string      `json:"exclude_patterns" yaml:"exclude_patterns"`
-	ChecksumAlgorithm string        `json:"checksum_algorithm" yaml:"checksum_algorithm"`
-
-	// CLI options
-	Options *Options
+	SourceDirectory    string        `json:"source_directory" yaml:"source_directory"`
+	FoldersToBackup    []string      `json:"folders_to_backup" yaml:"folders_to_backup"`
+	TargetDirectory    string        `json:"target_directory" yaml:"target_directory"`
+	DeepDuplicateCheck bool          `json:"deep_duplicate_check" yaml:"deep_duplicate_check"`
+	Concurrency        int           `json:"concurrency" yaml:"concurrency"`
+	BufferSize         int           `json:"buffer_size" yaml:"buffer_size"`
+	RetryAttempts      int           `json:"retry_attempts" yaml:"retry_attempts"`
+	RetryDelay         time.Duration `json:"retry_delay" yaml:"retry_delay"`
+	ExcludePatterns    []string      `json:"exclude_patterns" yaml:"exclude_patterns"`
+	ChecksumAlgorithm  string        `json:"checksum_algorithm" yaml:"checksum_algorithm"`
+	Options            *Options
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -63,17 +59,4 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	return config, nil
-}
-
-func Validate(cfg *Config) error {
-	if cfg.SourceDirectory == "" {
-		return newBackupError("Validate", "", fmt.Errorf("source_directory is empty"))
-	}
-	if cfg.TargetDirectory == "" {
-		return newBackupError("Validate", "", fmt.Errorf("target_directory is empty"))
-	}
-	if len(cfg.FoldersToBackup) == 0 {
-		return newBackupError("Validate", "", fmt.Errorf("folders_to_backup is empty"))
-	}
-	return nil
 }

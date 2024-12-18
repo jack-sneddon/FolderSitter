@@ -91,7 +91,6 @@ func (l *Logger) Error(format string, v ...interface{}) {
 func (l *Logger) log(level, format string, v ...interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	msg := fmt.Sprintf(format, v...)
 	l.logger.Printf("[%s] %s", level, msg)
 }

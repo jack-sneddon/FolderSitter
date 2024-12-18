@@ -1,3 +1,4 @@
+// copy.go
 package backup
 
 import (
@@ -9,8 +10,18 @@ import (
 	"time"
 )
 
-// Contains performCopy(), copyFile(), and related methods
 // performCopy executes a single copy operation
+func (s *Service) copyFile(task CopyTask) error {
+	// First check if we should skip this file
+	if skip, err := s.shouldSkipFile(task); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+
+	return s.performCopy(task)
+}
+
 func (s *Service) performCopy(task CopyTask) error {
 	startTime := time.Now()
 
@@ -41,7 +52,7 @@ func (s *Service) performCopy(task CopyTask) error {
 		return fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	// Calculate operation duration
+	// Calculate operation duration and speed
 	duration := time.Since(startTime)
 	speedMBps := float64(copied) / 1024 / 1024 / duration.Seconds()
 
@@ -64,15 +75,4 @@ func (s *Service) performCopy(task CopyTask) error {
 		speedMBps)
 
 	return nil
-}
-
-// Add this method to Service in backup.go
-func (s *Service) copyFile(task CopyTask) error {
-	// First check if we should skip this file
-	if skip, err := s.shouldSkipFile(task); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	return s.performCopy(task)
 }
