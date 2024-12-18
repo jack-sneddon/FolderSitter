@@ -22,6 +22,7 @@ const (
 )
 
 // validatePaths ensures all necessary directories exist
+/*
 func (s *Service) validatePaths() error {
 	// Check source directory
 	if _, err := os.Stat(s.config.SourceDirectory); err != nil {
@@ -35,6 +36,7 @@ func (s *Service) validatePaths() error {
 
 	return nil
 }
+*/
 
 // shouldSkipFile determines if a file should be skipped based on metadata and checksum
 // validations.go
