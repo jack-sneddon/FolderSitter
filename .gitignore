@@ -1,5 +1,5 @@
 # Ignore build artifacts
-foldersitter
+backup-butler
 *.log
 
 # Ignore out directory

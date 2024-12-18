@@ -7,14 +7,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/jack-sneddon/FolderSitter/internal/backup"
+	"github.com/jack-sneddon/backup-butler/internal/backup"
 )
 
 func printHelp() {
-	fmt.Print(`FolderSitter - Backup Utility
+	fmt.Print(`backup-butler - Backup Utility
 
 Usage:
-  foldersitter [options]
+  backup-butler [options]
 
 Options:
   -config <file>       Path to the configuration file (JSON or YAML)
@@ -29,11 +29,11 @@ Options:
   --latest-version    Show most recent backup details
 
 Examples:
-  foldersitter -config backup_config.json
-  foldersitter -config backup_config.yaml --dry-run --verbose
-  foldersitter -config backup_config.yaml --list-versions
-  foldersitter -config backup_config.yaml --show-version 20240117-150405
-  foldersitter -config backup_config.yaml --latest-version
+  backup-butler -config backup_config.json
+  backup-butler -config backup_config.yaml --dry-run --verbose
+  backup-butler -config backup_config.yaml --list-versions
+  backup-butler -config backup_config.yaml --show-version 20240117-150405
+  backup-butler -config backup_config.yaml --latest-version
 `)
 }
 

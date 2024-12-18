@@ -1,4 +1,4 @@
-module github.com/jack-sneddon/FolderSitter
+module github.com/jack-sneddon/backup-butler
 
 go 1.23
 

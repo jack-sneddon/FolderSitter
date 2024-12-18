@@ -87,7 +87,7 @@ func (s *Service) DryRun(ctx context.Context) error {
 
 	// Create log file in system temp directory
 	logFile := filepath.Join(os.TempDir(),
-		fmt.Sprintf("foldersitter_dryrun_%s.log",
+		fmt.Sprintf("backup-butler_dryrun_%s.log",
 			time.Now().Format("2006-01-02_15-04-05")))
 
 	// Initialize metrics and counters
@@ -130,7 +130,7 @@ func (s *Service) DryRun(ctx context.Context) error {
 	defer file.Close()
 
 	// Write log header
-	fmt.Fprintf(file, "FolderSitter Dry Run Analysis\n")
+	fmt.Fprintf(file, "backup-butler Dry Run Analysis\n")
 	fmt.Fprintf(file, "Time: %s\n", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Fprintf(file, "Source: %s\n", s.config.SourceDirectory)
 	fmt.Fprintf(file, "Target: %s\n", s.config.TargetDirectory)
