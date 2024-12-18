@@ -10,12 +10,22 @@ func NewService(cfg *Config) (*Service, error) {
 		return nil, fmt.Errorf("failed to create logger: %v", err)
 	}
 
+	// Validate configuration before creating service
+	if err := Validate(cfg); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
 	s := &Service{
 		config:  cfg,
 		logger:  logger,
 		metrics: &Metrics{},
 	}
 
-	s.pool = NewWorkerPool(cfg.Concurrency, s.copyFile)
+	s.pool = NewWorkerPool(
+		cfg.Concurrency,
+		s.copyFile,
+		cfg.RetryAttempts,
+		cfg.RetryDelay,
+	)
 	return s, nil
 }

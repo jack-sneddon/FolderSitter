@@ -4,6 +4,21 @@ package backup
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"time"
+)
+
+const (
+	// Configuration limits
+	maxConcurrency   = 32               // Maximum number of concurrent workers
+	minConcurrency   = 1                // Minimum number of concurrent workers
+	maxRetryAttempts = 10               // Maximum number of retry attempts
+	minRetryAttempts = 0                // Minimum number of retry attempts
+	maxRetryDelay    = time.Hour        // Maximum delay between retries
+	minRetryDelay    = time.Second      // Minimum delay between retries
+	maxBufferSize    = 10 * 1024 * 1024 // 10MB maximum buffer size
+	minBufferSize    = 4 * 1024         // 4KB minimum buffer size
 )
 
 // validatePaths ensures all necessary directories exist
@@ -73,8 +88,87 @@ func (s *Service) shouldSkipFile(task CopyTask) (bool, error) {
 	return true, nil
 }
 
-// Add this public function
+// validateWorkerConfig performs detailed validation of worker pool settings
+func validateWorkerConfig(cfg *Config) error {
+	// Validate concurrency
+	if cfg.Concurrency < minConcurrency || cfg.Concurrency > maxConcurrency {
+		return newBackupError(
+			"ValidateWorker",
+			"",
+			fmt.Errorf("concurrency must be between %d and %d, got %d",
+				minConcurrency, maxConcurrency, cfg.Concurrency),
+		)
+	}
+
+	// Validate retry attempts
+	if cfg.RetryAttempts < minRetryAttempts || cfg.RetryAttempts > maxRetryAttempts {
+		return newBackupError(
+			"ValidateWorker",
+			"",
+			fmt.Errorf("retry attempts must be between %d and %d, got %d",
+				minRetryAttempts, maxRetryAttempts, cfg.RetryAttempts),
+		)
+	}
+
+	// Validate retry delay
+	if cfg.RetryDelay < minRetryDelay || cfg.RetryDelay > maxRetryDelay {
+		return newBackupError(
+			"ValidateWorker",
+			"",
+			fmt.Errorf("retry delay must be between %v and %v, got %v",
+				minRetryDelay, maxRetryDelay, cfg.RetryDelay),
+		)
+	}
+
+	// Validate buffer size
+	if cfg.BufferSize < minBufferSize || cfg.BufferSize > maxBufferSize {
+		return newBackupError(
+			"ValidateWorker",
+			"",
+			fmt.Errorf("buffer size must be between %d and %d bytes, got %d",
+				minBufferSize, maxBufferSize, cfg.BufferSize),
+		)
+	}
+
+	return nil
+}
+
+// validateSystemResources checks if the system can handle the requested configuration
+func validateSystemResources(cfg *Config) error {
+	// Get number of CPU cores
+	numCPU := runtime.NumCPU()
+
+	// Ensure concurrency doesn't exceed 2x number of CPU cores
+	if cfg.Concurrency > numCPU*2 {
+		return newBackupError(
+			"ValidateResources",
+			"",
+			fmt.Errorf("requested concurrency (%d) exceeds recommended maximum (%d) for %d CPU cores",
+				cfg.Concurrency, numCPU*2, numCPU),
+		)
+	}
+
+	// Calculate total buffer size across all workers
+	totalBufferSize := int64(cfg.BufferSize) * int64(cfg.Concurrency)
+
+	// Set a reasonable maximum total buffer size (e.g., 1GB)
+	const maxTotalBufferSize = int64(1024 * 1024 * 1024) // 1GB
+
+	if totalBufferSize > maxTotalBufferSize {
+		return newBackupError(
+			"ValidateResources",
+			"",
+			fmt.Errorf("total buffer size (%d bytes) exceeds maximum allowed (%d bytes)",
+				totalBufferSize, maxTotalBufferSize),
+		)
+	}
+
+	return nil
+}
+
+// Validate performs comprehensive validation of the configuration
 func Validate(cfg *Config) error {
+	// Basic validation
 	if cfg.SourceDirectory == "" {
 		return newBackupError("Validate", "", fmt.Errorf("source_directory is empty"))
 	}
@@ -90,15 +184,51 @@ func Validate(cfg *Config) error {
 		return newBackupError("Validate", cfg.SourceDirectory, fmt.Errorf("source directory does not exist"))
 	}
 
-	// Validate configuration values
-	if cfg.Concurrency < 1 {
-		return newBackupError("Validate", "", fmt.Errorf("concurrency must be at least 1"))
+	// Worker and resource validation
+	if err := validateWorkerConfig(cfg); err != nil {
+		return err
 	}
-	if cfg.BufferSize < 1024 {
-		return newBackupError("Validate", "", fmt.Errorf("buffer size must be at least 1024 bytes"))
+
+	if err := validateSystemResources(cfg); err != nil {
+		return err
 	}
-	if cfg.RetryAttempts < 0 {
-		return newBackupError("Validate", "", fmt.Errorf("retry attempts cannot be negative"))
+
+	// Validate exclude patterns
+	for _, pattern := range cfg.ExcludePatterns {
+		if _, err := filepath.Match(pattern, "test"); err != nil {
+			return newBackupError(
+				"Validate",
+				pattern,
+				fmt.Errorf("invalid exclude pattern: %v", err),
+			)
+		}
+	}
+
+	return nil
+}
+
+// ValidateConfigChange validates configuration changes at runtime
+func (s *Service) ValidateConfigChange(newCfg *Config) error {
+	// Validate the new configuration
+	if err := Validate(newCfg); err != nil {
+		return err
+	}
+
+	// Additional validation for runtime changes
+	if newCfg.Concurrency < s.config.Concurrency {
+		// Check if backup is in progress
+		s.metrics.mu.Lock()
+		// Changed to check if there are any files copied or in progress
+		backupInProgress := s.metrics.FilesCopied > 0 || s.metrics.BytesCopied > 0
+		s.metrics.mu.Unlock()
+
+		if backupInProgress {
+			return newBackupError(
+				"ValidateConfigChange",
+				"",
+				fmt.Errorf("cannot reduce concurrency while tasks are in progress"),
+			)
+		}
 	}
 
 	return nil
