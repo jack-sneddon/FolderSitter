@@ -15,8 +15,10 @@ import (
 func (s *Service) copyFile(task CopyTask) error {
 	// First check if we should skip this file
 	if skip, err := s.shouldSkipFile(task); err != nil {
+		s.metrics.IncrementFailed()
 		return err
 	} else if skip {
+		s.metrics.IncrementSkipped(task.Size) // Keep only this increment
 		// Add file to version manager as skipped
 		if s.versioner != nil {
 			metadata := FileMetadata{
@@ -26,9 +28,15 @@ func (s *Service) copyFile(task CopyTask) error {
 			}
 			s.versioner.AddFile(task.Source, metadata)
 		}
+		return nil
 	}
 
-	return s.performCopy(task)
+	if err := s.performCopy(task); err != nil {
+		s.metrics.IncrementFailed()
+		return err
+	}
+
+	return nil
 }
 
 func (s *Service) performCopy(task CopyTask) error {
@@ -65,11 +73,8 @@ func (s *Service) performCopy(task CopyTask) error {
 	duration := time.Since(startTime)
 	speedMBps := float64(copied) / 1024 / 1024 / duration.Seconds()
 
-	// Update metrics
-	s.metrics.mu.Lock()
-	s.metrics.BytesCopied += copied
-	s.metrics.FilesCopied++
-	s.metrics.mu.Unlock()
+	// Update metrics only once here
+	s.metrics.IncrementCompleted(copied)
 
 	// Preserve file mode
 	if sourceInfo, err := os.Stat(task.Source); err == nil {
@@ -88,7 +93,7 @@ func (s *Service) performCopy(task CopyTask) error {
 			Path:     task.Source,
 			Size:     copied,
 			ModTime:  time.Now(),
-			Checksum: hex.EncodeToString(hasher.Sum(nil)), // Add this if you want checksum
+			Checksum: hex.EncodeToString(hasher.Sum(nil)),
 		}
 		s.versioner.AddFile(task.Source, metadata)
 	}

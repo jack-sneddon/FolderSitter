@@ -43,16 +43,6 @@ type BackupVersion struct {
 	ConfigUsed Config                  // Configuration used for this backup
 }
 
-// BackupStats holds statistical information about the backup
-type BackupStats struct {
-	TotalFiles       int   // Total number of files processed
-	FilesBackedUp    int   // Number of files actually copied
-	FilesSkipped     int   // Number of unchanged files
-	FilesFailed      int   // Number of files that failed to backup
-	TotalBytes       int64 // Total bytes processed
-	BytesTransferred int64 // Actual bytes copied
-}
-
 // VersionManager handles backup versioning
 type VersionManager struct {
 	baseDir    string          // Base directory for version storage

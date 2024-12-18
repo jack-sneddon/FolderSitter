@@ -6,8 +6,10 @@ import (
 )
 
 // createTasks generates the list of files to be backed up
-func (s *Service) createTasks() ([]CopyTask, error) {
+// task.go
+func (s *Service) createTasks() ([]CopyTask, int, error) {
 	var tasks []CopyTask
+	totalFiles := 0
 
 	for _, folder := range s.config.FoldersToBackup {
 		srcPath := filepath.Join(s.config.SourceDirectory, folder)
@@ -26,15 +28,15 @@ func (s *Service) createTasks() ([]CopyTask, error) {
 				}
 			}
 
-			// Create relative path
-			relPath, err := filepath.Rel(srcPath, path)
-			if err != nil {
-				return err
-			}
-
-			destPath := filepath.Join(dstPath, relPath)
-
 			if !info.IsDir() {
+				totalFiles++ // Increment total files count
+				// Create relative path
+				relPath, err := filepath.Rel(srcPath, path)
+				if err != nil {
+					return err
+				}
+
+				destPath := filepath.Join(dstPath, relPath)
 				tasks = append(tasks, CopyTask{
 					Source:      path,
 					Destination: destPath,
@@ -47,9 +49,9 @@ func (s *Service) createTasks() ([]CopyTask, error) {
 		})
 
 		if err != nil {
-			return nil, newBackupError("CreateTasks", srcPath, err)
+			return nil, 0, newBackupError("CreateTasks", srcPath, err)
 		}
 	}
 
-	return tasks, nil
+	return tasks, totalFiles, nil
 }

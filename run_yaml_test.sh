@@ -1,19 +1,19 @@
-echo "\n\n******* dry-run ******\n\n"
+echo "\n******* dry-run ******\n"
 go run cmd/main.go -config configs/test_config.yaml --dry-run
 rm -rf /Users/jack/tmp/2024-11-27-backyaml
 
-echo "\n\n******* copy *****\n\n"
+echo "\n******* copy *****\n"
 go run cmd/main.go -config configs/test_config.yaml
 du -h /Users/jack/tmp/2024-11-27-backyaml
 
-echo "\n\n******* list versions *****\n\n"
+echo "\n******* copy2 *****\n"
+rm -rf /Users/jack/tmp/2024-11-27-backyaml/Packers
+go run cmd/main.go -config configs/test_config.yaml
+
+echo "\n******* list versions *****\n"
 # List all versions
 go run cmd/main.go -config configs/test_config.yaml --list-versions
 
-# Show specific version
-echo "\n\n******* show specific versions *****\n\n"
-go run cmd/main.go -config configs/test_config.yaml --show-version 20231217-212653
-
 # Show latest version
-echo "\n\n******* show latest versions *****\n\n"
+echo "\n******* show latest versions *****\n"
 go run cmd/main.go -config configs/test_config.yaml --latest-version

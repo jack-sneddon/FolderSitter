@@ -9,109 +9,103 @@ import (
 )
 
 func (s *Service) Backup(ctx context.Context) error {
-	startTime := time.Now()
-
-	// Start new backup version
-	version := s.versioner.StartNewVersion(s.config)
-
-	// Initialize metrics
-	s.metrics.mu.Lock()
-	s.metrics.StartTime = startTime
-	s.metrics.BytesCopied = 0
-	s.metrics.FilesCopied = 0
-	s.metrics.FilesSkipped = 0
-	s.metrics.Errors = 0
-	s.metrics.mu.Unlock()
-
-	// Validate paths
-	if err := s.validatePaths(); err != nil {
-		version.Status = "Failed"
-		return err
-	}
-
 	// Create backup tasks
-	tasks, err := s.createTasks()
+	tasks, totalFiles, err := s.createTasks()
 	if err != nil {
-		version.Status = "Failed"
 		return err
 	}
 
 	if !s.config.Options.Quiet {
-		fmt.Printf("Starting backup of %d files...\n", len(tasks))
+		fmt.Printf("Starting backup of %d files...\n", totalFiles)
+	}
+
+	// Initialize metrics and start tracking
+	s.metrics = NewBackupMetrics(totalFiles, s.config.Options.Quiet)
+	s.metrics.StartTracking(ctx)
+
+	// Start new backup version
+	s.versioner.StartNewVersion(s.config)
+
+	// Create a done channel for the display goroutine
+	done := make(chan struct{})
+	defer close(done)
+
+	// Start progress display in a separate goroutine
+	if !s.config.Options.Quiet {
+		go func() {
+			ticker := time.NewTicker(200 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					s.metrics.DisplayProgress()
+				case <-done:
+					s.metrics.DisplayProgress() // One final update
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
 	}
 
 	// Execute backup
-	if err := s.pool.Execute(ctx, tasks); err != nil {
-		version.Status = "Failed"
-		s.versioner.CompleteVersion(BackupStats{
-			TotalFiles:       len(tasks),
-			FilesBackedUp:    s.metrics.FilesCopied,
-			FilesSkipped:     s.metrics.FilesSkipped,
-			FilesFailed:      s.metrics.Errors,
-			TotalBytes:       s.metrics.BytesCopied,
-			BytesTransferred: s.metrics.BytesCopied,
-		})
-		return err
-	}
+	err = s.pool.Execute(ctx, tasks)
 
-	// Calculate duration properly
-	duration := time.Since(startTime)
+	// Wait a moment for final progress update
+	time.Sleep(200 * time.Millisecond)
 
-	// Update final metrics and complete version
-	s.metrics.mu.Lock()
-	stats := BackupStats{
-		TotalFiles:       len(tasks),
-		FilesBackedUp:    s.metrics.FilesCopied,
-		FilesSkipped:     s.metrics.FilesSkipped,
-		FilesFailed:      s.metrics.Errors,
-		TotalBytes:       s.metrics.BytesCopied,
-		BytesTransferred: s.metrics.BytesCopied,
-	}
-	s.metrics.mu.Unlock()
-
+	// Get final stats and complete version
+	stats := s.metrics.GetStats()
 	if err := s.versioner.CompleteVersion(stats); err != nil {
 		s.logger.Error("Failed to save backup version: %v", err)
 	}
 
-	// Log completion
-	s.logger.Info("Backup completed in %v. Files copied: %d, Files skipped: %d, Errors: %d, Total size: %.2f MB",
-		duration,
-		stats.FilesBackedUp,
-		stats.FilesSkipped,
-		stats.FilesFailed,
-		float64(stats.TotalBytes)/1024/1024)
+	// Print final summary
+	s.metrics.DisplayFinalSummary()
 
-	// Print user-friendly summary
-	if !s.config.Options.Quiet {
-		fmt.Printf("\nBackup completed successfully in %v\n", duration)
-		fmt.Printf("Files copied: %d, Files skipped: %d, Total size: %.2f MB\n",
-			stats.FilesBackedUp,
-			stats.FilesSkipped,
-			float64(stats.TotalBytes)/1024/1024)
-	}
-	return nil
+	// Close the metrics updates channel
+	close(s.metrics.updates)
+
+	return err
 }
 
 // DryRun simulates the backup process without making changes
 func (s *Service) DryRun(ctx context.Context) error {
-	s.metrics.StartTime = time.Now()
-
 	// Validate paths
 	if err := s.validatePaths(); err != nil {
 		return err
 	}
 
 	// Create backup tasks
-	tasks, err := s.createTasks()
+	tasks, totalFiles, err := s.createTasks()
 	if err != nil {
 		return err
 	}
 
+	// Initialize new metrics for this dry run
+	s.metrics = NewBackupMetrics(totalFiles, s.config.Options.Quiet)
+
 	totalSize := int64(0)
 	fileCount := 0
+	skippedCount := 0
+	skippedSize := int64(0)
 
 	// Simulate the backup
 	for _, task := range tasks {
+		if skip, err := s.shouldSkipFile(task); err != nil {
+			s.logger.Warn("Cannot check file %s: %v", task.Source, err)
+			continue
+		} else if skip {
+			skippedCount++
+			info, _ := os.Stat(task.Source)
+			skippedSize += info.Size()
+			if !s.config.Options.Quiet {
+				fmt.Printf("Would skip: %s (identical)\n", task.Source)
+			}
+			continue
+		}
+
 		info, err := os.Stat(task.Source)
 		if err != nil {
 			s.logger.Warn("Cannot stat file %s: %v", task.Source, err)
@@ -121,22 +115,18 @@ func (s *Service) DryRun(ctx context.Context) error {
 		totalSize += info.Size()
 		fileCount++
 
-		s.logger.Info("[DRY RUN] Would copy: %s -> %s (%.2f MB)",
-			task.Source, task.Destination, float64(info.Size())/1024/1024)
-
 		if !s.config.Options.Quiet {
 			fmt.Printf("Would copy: %s -> %s\n", task.Source, task.Destination)
 		}
 	}
 
-	duration := time.Since(s.metrics.StartTime)
-	s.logger.Info("Dry run completed. Would copy %d files, total size: %.2f MB",
-		fileCount, float64(totalSize)/1024/1024)
-
+	duration := s.metrics.GetDuration()
 	if !s.config.Options.Quiet {
 		fmt.Printf("\nDry run completed in %v\n", duration)
-		fmt.Printf("Files to copy: %d, Total size: %.2f MB\n",
-			fileCount, float64(totalSize)/1024/1024)
+		fmt.Printf("Files to copy: %d, Files to skip: %d\n", fileCount, skippedCount)
+		fmt.Printf("Data to copy: %.2f MB, Data to skip: %.2f MB\n",
+			float64(totalSize)/1024/1024,
+			float64(skippedSize)/1024/1024)
 	}
 
 	return nil

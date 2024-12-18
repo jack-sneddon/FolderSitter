@@ -37,6 +37,7 @@ func (s *Service) validatePaths() error {
 }
 
 // shouldSkipFile determines if a file should be skipped based on metadata and checksum
+// validations.go
 func (s *Service) shouldSkipFile(task CopyTask) (bool, error) {
 	sourceInfo, err := os.Stat(task.Source)
 	if err != nil {
@@ -78,10 +79,7 @@ func (s *Service) shouldSkipFile(task CopyTask) (bool, error) {
 	}
 
 	// Files are identical - update metrics
-	s.metrics.mu.Lock()
-	s.metrics.BytesCopied += sourceInfo.Size()
-	s.metrics.FilesSkipped++
-	s.metrics.mu.Unlock()
+	// s.metrics.IncrementSkipped(sourceInfo.Size())
 
 	s.logger.Debug("Skipped identical file: %s (Size: %.2f MB)",
 		task.Source, float64(sourceInfo.Size())/1024/1024)
@@ -208,6 +206,7 @@ func Validate(cfg *Config) error {
 }
 
 // ValidateConfigChange validates configuration changes at runtime
+// validation.go
 func (s *Service) ValidateConfigChange(newCfg *Config) error {
 	// Validate the new configuration
 	if err := Validate(newCfg); err != nil {
@@ -217,12 +216,7 @@ func (s *Service) ValidateConfigChange(newCfg *Config) error {
 	// Additional validation for runtime changes
 	if newCfg.Concurrency < s.config.Concurrency {
 		// Check if backup is in progress
-		s.metrics.mu.Lock()
-		// Changed to check if there are any files copied or in progress
-		backupInProgress := s.metrics.FilesCopied > 0 || s.metrics.BytesCopied > 0
-		s.metrics.mu.Unlock()
-
-		if backupInProgress {
+		if s.metrics.IsBackupInProgress() {
 			return newBackupError(
 				"ValidateConfigChange",
 				"",
