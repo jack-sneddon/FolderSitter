@@ -11,6 +11,9 @@ import (
 func (s *Service) Backup(ctx context.Context) error {
 	startTime := time.Now()
 
+	// Start new backup version
+	version := s.versioner.StartNewVersion(s.config)
+
 	// Initialize metrics
 	s.metrics.mu.Lock()
 	s.metrics.StartTime = startTime
@@ -22,12 +25,14 @@ func (s *Service) Backup(ctx context.Context) error {
 
 	// Validate paths
 	if err := s.validatePaths(); err != nil {
+		version.Status = "Failed"
 		return err
 	}
 
 	// Create backup tasks
 	tasks, err := s.createTasks()
 	if err != nil {
+		version.Status = "Failed"
 		return err
 	}
 
@@ -37,37 +42,53 @@ func (s *Service) Backup(ctx context.Context) error {
 
 	// Execute backup
 	if err := s.pool.Execute(ctx, tasks); err != nil {
+		version.Status = "Failed"
+		s.versioner.CompleteVersion(BackupStats{
+			TotalFiles:       len(tasks),
+			FilesBackedUp:    s.metrics.FilesCopied,
+			FilesSkipped:     s.metrics.FilesSkipped,
+			FilesFailed:      s.metrics.Errors,
+			TotalBytes:       s.metrics.BytesCopied,
+			BytesTransferred: s.metrics.BytesCopied,
+		})
 		return err
 	}
 
 	// Calculate duration properly
 	duration := time.Since(startTime)
 
-	// Update final metrics
+	// Update final metrics and complete version
 	s.metrics.mu.Lock()
-	totalBytes := s.metrics.BytesCopied
-	filesCopied := s.metrics.FilesCopied
-	filesSkipped := s.metrics.FilesSkipped
-	errors := s.metrics.Errors
+	stats := BackupStats{
+		TotalFiles:       len(tasks),
+		FilesBackedUp:    s.metrics.FilesCopied,
+		FilesSkipped:     s.metrics.FilesSkipped,
+		FilesFailed:      s.metrics.Errors,
+		TotalBytes:       s.metrics.BytesCopied,
+		BytesTransferred: s.metrics.BytesCopied,
+	}
 	s.metrics.mu.Unlock()
+
+	if err := s.versioner.CompleteVersion(stats); err != nil {
+		s.logger.Error("Failed to save backup version: %v", err)
+	}
 
 	// Log completion
 	s.logger.Info("Backup completed in %v. Files copied: %d, Files skipped: %d, Errors: %d, Total size: %.2f MB",
 		duration,
-		filesCopied,
-		filesSkipped,
-		errors,
-		float64(totalBytes)/1024/1024)
+		stats.FilesBackedUp,
+		stats.FilesSkipped,
+		stats.FilesFailed,
+		float64(stats.TotalBytes)/1024/1024)
 
 	// Print user-friendly summary
 	if !s.config.Options.Quiet {
 		fmt.Printf("\nBackup completed successfully in %v\n", duration)
 		fmt.Printf("Files copied: %d, Files skipped: %d, Total size: %.2f MB\n",
-			filesCopied,
-			filesSkipped,
-			float64(totalBytes)/1024/1024)
+			stats.FilesBackedUp,
+			stats.FilesSkipped,
+			float64(stats.TotalBytes)/1024/1024)
 	}
-
 	return nil
 }
 

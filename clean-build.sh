@@ -28,8 +28,8 @@ go clean -cache
 
 # Step 7: Build the project
 echo "Building the project..."
-# go build -o foldersitter ./cmd/main.go
-go build ./...
+go build -o foldersitter ./cmd/main.go
+# go build ./...
 
 # Step 8: Run the binary to test
 # ./foldersitter -config configs/run_test_config.yaml

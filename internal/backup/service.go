@@ -15,10 +15,16 @@ func NewService(cfg *Config) (*Service, error) {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
+	versioner, err := NewVersionManager(cfg.TargetDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create version manager: %v", err)
+	}
+
 	s := &Service{
-		config:  cfg,
-		logger:  logger,
-		metrics: &Metrics{},
+		config:    cfg,
+		logger:    logger,
+		metrics:   &Metrics{},
+		versioner: versioner,
 	}
 
 	s.pool = NewWorkerPool(
@@ -28,4 +34,30 @@ func NewService(cfg *Config) (*Service, error) {
 		cfg.RetryDelay,
 	)
 	return s, nil
+}
+
+// Version management methods
+func (s *Service) GetVersions() []BackupVersion {
+	if s.versioner == nil {
+		return nil
+	}
+	return s.versioner.GetVersions()
+}
+
+func (s *Service) GetVersion(id string) (*BackupVersion, error) {
+	if s.versioner == nil {
+		return nil, fmt.Errorf("version manager not initialized")
+	}
+	return s.versioner.GetVersion(id)
+}
+
+func (s *Service) GetLatestVersion() (*BackupVersion, error) {
+	if s.versioner == nil {
+		return nil, fmt.Errorf("version manager not initialized")
+	}
+	latest := s.versioner.GetLatestVersion()
+	if latest == nil {
+		return nil, fmt.Errorf("no backup versions found")
+	}
+	return latest, nil
 }

@@ -8,10 +8,11 @@ import (
 
 // Service represents the backup service with all required dependencies
 type Service struct {
-	config  *Config
-	logger  *Logger
-	metrics *Metrics
-	pool    *WorkerPool
+	config    *Config
+	logger    *Logger
+	metrics   *Metrics
+	pool      *WorkerPool
+	versioner *VersionManager
 }
 
 // Metrics tracks backup operation statistics

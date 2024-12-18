@@ -3,6 +3,7 @@ package backup
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -16,7 +17,15 @@ func (s *Service) copyFile(task CopyTask) error {
 	if skip, err := s.shouldSkipFile(task); err != nil {
 		return err
 	} else if skip {
-		return nil
+		// Add file to version manager as skipped
+		if s.versioner != nil {
+			metadata := FileMetadata{
+				Path:    task.Source,
+				Size:    task.Size,
+				ModTime: task.ModTime,
+			}
+			s.versioner.AddFile(task.Source, metadata)
+		}
 	}
 
 	return s.performCopy(task)
@@ -73,6 +82,16 @@ func (s *Service) performCopy(task CopyTask) error {
 		task.Source,
 		float64(copied)/1024/1024,
 		speedMBps)
+
+	if s.versioner != nil {
+		metadata := FileMetadata{
+			Path:     task.Source,
+			Size:     copied,
+			ModTime:  time.Now(),
+			Checksum: hex.EncodeToString(hasher.Sum(nil)), // Add this if you want checksum
+		}
+		s.versioner.AddFile(task.Source, metadata)
+	}
 
 	return nil
 }
